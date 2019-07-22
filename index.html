@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+  <head>
+    <title>A new tidy data structure   to support exploration and modeling of temporal data</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Earo Wang" />
+    <link rel="stylesheet" href="libs/remark.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# A new tidy data structure <br> to support exploration and modeling of temporal data
+### Earo Wang
+
+---
+
+
+
+
+
+
+.left-column[
+.center[
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+&lt;img src="https://github.com/rstudio/hex-stickers/blob/master/PNG/tidyverse.png?raw=true", height = "200px"&gt;
+]
+]
+.right-column[
+&lt;br&gt;
+&lt;br&gt;
+&lt;img src="img/tidy-model.png", width = "100%"&gt;
+]
+
+### .center[Behind fluent pipeline is [tidy data](https://tidyr.tidyverse.org/articles/tidy-data.html).]
+
+???
+
+Data analysis is a process, particularly it's an iterative process.
+
+The tidyverse is a collection of R packages to help with this process quick and tidy.
+
+Why it's important? Before deploying the final model into the production stage, we need to repeat this process many many times. If this model doesn't work, we make some tweaks, and then fit another model. We want this iteration as rapid as possible.
+
+In addition to tidy tools, what's underlying this fluent workflow is tidy data.
+
+The "tidy" stage doesn't mean data cleaning, but refers to making the data in a right shape, a uniform shape that is shared by these three stages in this circle.
+
+With the tidyverse, we have such a fluent pipeline to handle data analysis. But when you have time series data and want to do time series analysis ...
+
+---
+
+.left-column[
+&lt;br&gt;
+&lt;br&gt;
+## .center[.red[time series verse]]
+]
+.right-column[
+&lt;br&gt;
+&lt;br&gt;
+&lt;img src="img/ts-model.png", width = "100%"&gt;
+]
+
+### .center[WAT!😱]
+
+???
+
+This is what you experience. Lots of you in this department primarily focus on the statistical models. But I have been working on the rest of the process to support modelling.
+
+Small data lives in csv files, big data stays in database. But most time, the form of the data at the "import" stage deviates a lot from the current time series objects that are designed for modelling. When doing transformation and visualisation, different data shapes are expected. We do not have a uniform shape for lubricating this process for time series. There's no formal guidance how to reshape the data for modelling purpose.
+
+Screaming out "WAT" is the natural response to this workflow. Let me share my "WAT" moment.
+
+---
+
+background-image: url(img/tsibble-model.png)
+background-size: 70%
+background-position: 91% 38%
+
+.left-column[
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+## .center[tidyver.red[ts]]
+]
+.right-column[
+.animated.slower.rollIn[
+.pipeline[&lt;img src="img/tsibble.png", height = "150px"&gt;]
+]
+]
+
+### .bottom[.center[Tsibble defines tidier data for temporal analysis.]]
+
+???
+
+So my work is going to smooth out those rough edges, provides a conceptual framework for temporal data analysis, and fill the gap of tidy data in temporal context. We're going to call this new data structure---"tsibble".
+
+You know I'm serious about this work, bc it has a logo.
+
+Next I'm going to demonstrate this whole data process with tsibble and showcase the value of it.
+
+---
+
+class: inverse middle
+
+# .blue[1.] Tsibble is &lt;br&gt; a data abstraction &lt;br&gt; for tidy temporal data.
+
+&lt;hr&gt;
+
+&lt;img src="img/tsibble-semantics.png", height = "120px"&gt;
+
+???
+
+Tsibble is a multi-faceted product.
+
+First of all, tsibble represents tidy temporal data.
+
+A tsibble has to be tidy data first. Data is organised in the common rectangular form: each row is an observation; each column holds a variable. But temporal data is more of a contextual data object. So on top of the tidy data, column variables require more meanings: index for time support, key for defining identities over time, and the rest are measurements.
+
+---
+
+class: middle
+
+.top[&lt;img src="img/tsibble-semantics.png", height = "80px"&gt;]
+
+## In *tsibble*:
+
+1. **Index** is a variable with inherent ordering from past to present.
+2. **Key** is a set of variables that define observational units over time.
+3. Each observation should be uniquely identified by **key** and **index**.
+
+Tsibble is a data- and model-oriented object.
+
+???
+
+Let me elaborate index and key more.
+
+The index variable consists of time indices that provide a contextual basis for temporal data.
+
+A variety of time representations exist in the wild, the common ones you saw before, dates and date-times, as well as intradays and intervals from one time point to another. Tsibble supports all of them, as long as they can be ordered from past to future.
+
+Unlike other time series objects, tsibble respects time zones, will not ignore them and not convert them to UTC. 
+
+Temporal data can be regular and irregularly spaced in time. That's why we say tsibble is temporal data instead of time series.
+
+And the key can consist of empty, one or more variables. It is typically known for analysts. Each observational unit in the key, only allows unique time indices.
+
+These features make tsibble a modern re-imagining temporal data.
+
+---
+
+class: middle
+
+.left-column[
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+## .center[🛫 🌎 🛬]
+]
+.right-column[
+
+```
+#&gt; # A tibble: 5,548,445 x 22
+#&gt;   flight_num sched_dep_datetime  sched_arr_datetime 
+#&gt;   &lt;chr&gt;      &lt;dttm&gt;              &lt;dttm&gt;             
+#&gt; 1 AA494      2017-01-17 16:19:00 2017-01-17 18:56:00
+#&gt; 2 AA494      2017-01-18 16:19:00 2017-01-18 18:56:00
+#&gt; 3 AA494      2017-01-19 16:19:00 2017-01-19 18:56:00
+#&gt; 4 AA494      2017-01-20 16:19:00 2017-01-20 18:56:00
+#&gt; 5 AA494      2017-01-21 16:19:00 2017-01-21 18:56:00
+#&gt; 6 AA494      2017-01-22 16:19:00 2017-01-22 18:56:00
+#&gt; # … with 5.548e+06 more rows, and 19 more variables:
+#&gt; #   dep_delay &lt;dbl&gt;, arr_delay &lt;dbl&gt;, carrier &lt;chr&gt;,
+#&gt; #   tailnum &lt;chr&gt;, origin &lt;chr&gt;, dest &lt;chr&gt;,
+#&gt; #   air_time &lt;dbl&gt;, distance &lt;dbl&gt;, origin_city_name &lt;chr&gt;,
+#&gt; #   origin_state &lt;chr&gt;, dest_city_name &lt;chr&gt;,
+#&gt; #   dest_state &lt;chr&gt;, taxi_out &lt;dbl&gt;, taxi_in &lt;dbl&gt;,
+#&gt; #   carrier_delay &lt;dbl&gt;, weather_delay &lt;dbl&gt;,
+#&gt; #   nas_delay &lt;dbl&gt;, security_delay &lt;dbl&gt;,
+#&gt; #   late_aircraft_delay &lt;dbl&gt;
+```
+]
+
+???
+
+How the data looks like?
+
+My data is quite simple, with 1000 obs and 2 variables. The `Date` column provides the time context. and how many visitors.
+
+This data starts from the day when I started my PhD until yesterday. It has a sad beginning that nobody visited my website in the early days.
+
+By contrast, airline data contains 5M obs and 22 variables. The `sched_dep_datetime` column gives the date-times. Other variables include the meta info describing the flights and on-time performance metrics. It is an event data set.
+
+They already arrived in the tidy shape, with clearly defined observations and variables. Now we need to declare them as temporal data using tsibble.
+
+---
+
+## Declare a tsibble
+
+.details[
+
+```r
+flights_ts &lt;- flights %&gt;% 
+  as_tsibble(key = flight_num, index = sched_dep_datetime, regular = FALSE)
+```
+
+```
+#&gt; A valid tsibble must have distinct rows identified by key and index.
+#&gt; Please use `duplicates()` to check the duplicated rows.
+```
+]
+
+--
+
+## &lt;i class="fas fa-search"&gt;&lt;/i&gt; duplicates
+
+
+```r
+flights %&gt;% 
+  duplicates(key = flight_num, index = sched_dep_datetime)
+```
+
+???
+
+How about the airline data?
+
+From the passenger's point of view, we're interested in flight number at its scheduled departure time. Also it's irregular interval.
+
+After declaring key and index. Oops! We got an error.
+
+The error says: ... and suggests ...
+
+Another way to interpret this error message is that this data may have data quality issue.
+
+---
+
+class: middle
+
+
+```
+#&gt; # A tibble: 2 x 22
+#&gt;   flight_num sched_dep_datetime  sched_arr_datetime  dep_delay arr_delay
+#&gt;   &lt;chr&gt;      &lt;dttm&gt;              &lt;dttm&gt;                  &lt;dbl&gt;     &lt;dbl&gt;
+*#&gt; 1 NK630      2017-08-03 17:45:00 2017-08-03 21:00:00       140       194
+#&gt; 2 NK630      2017-08-03 17:45:00 2017-08-03 21:00:00       140       194
+#&gt;   carrier tailnum origin dest  air_time distance origin_city_name
+#&gt;   &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;  &lt;chr&gt;    &lt;dbl&gt;    &lt;dbl&gt; &lt;chr&gt;           
+*#&gt; 1 NK      N601NK  LAX    DEN        107      862 Los Angeles     
+#&gt; 2 NK      N639NK  ORD    LGA        107      733 Chicago         
+#&gt; # … with 10 more variables: origin_state &lt;chr&gt;, dest_city_name &lt;chr&gt;,
+#&gt; #   dest_state &lt;chr&gt;, taxi_out &lt;dbl&gt;, taxi_in &lt;dbl&gt;, carrier_delay &lt;dbl&gt;,
+#&gt; #   weather_delay &lt;dbl&gt;, nas_delay &lt;dbl&gt;, security_delay &lt;dbl&gt;,
+#&gt; #   late_aircraft_delay &lt;dbl&gt;
+```
+
+???
+
+We need to search for those duplicates and fix them.
+
+As you can see, we've got two problematic entries. The flight number `NK630` has been scheduled twice at the same departure time. They have identical arrival time, departure delay, arrival delay, and carrier. But they are different in tail number, origin and destination. After researching this flight number and going through the whole database, my decision is to remove the highlighted entry: the flight from LAX to DEN, bc this flight doesn't operate on this route.
+
+Tsibble is strict on tidy data.
+
+---
+
+
+
+
+```r
+flights_ts &lt;- flights %&gt;% 
+  filter(!dup_lgl) %&gt;% 
+  as_tsibble(key = flight_num, index = sched_dep_datetime, regular = FALSE)
+```
+
+
+```
+*#&gt; # A tsibble: 5,548,444 x 22 [!] &lt;UTC&gt;
+*#&gt; # Key:       flight_num [22,562]
+#&gt;   flight_num sched_dep_datetime  sched_arr_datetime  dep_delay
+#&gt;   &lt;chr&gt;      &lt;dttm&gt;              &lt;dttm&gt;                  &lt;dbl&gt;
+#&gt; 1 AA1        2017-01-01 08:00:00 2017-01-01 11:42:00        31
+#&gt; 2 AA1        2017-01-02 08:00:00 2017-01-02 11:42:00        -3
+#&gt; 3 AA1        2017-01-03 08:00:00 2017-01-03 11:42:00        -6
+#&gt; 4 AA1        2017-01-04 08:00:00 2017-01-04 11:42:00        -3
+#&gt; 5 AA1        2017-01-05 08:00:00 2017-01-05 11:42:00        -7
+#&gt; 6 AA1        2017-01-06 08:00:00 2017-01-06 11:42:00        -3
+#&gt; # … with 5.548e+06 more rows, and 18 more variables: arr_delay &lt;dbl&gt;,
+#&gt; #   carrier &lt;chr&gt;, tailnum &lt;chr&gt;, origin &lt;chr&gt;, dest &lt;chr&gt;,
+#&gt; #   air_time &lt;dbl&gt;, distance &lt;dbl&gt;, origin_city_name &lt;chr&gt;,
+#&gt; #   origin_state &lt;chr&gt;, dest_city_name &lt;chr&gt;, dest_state &lt;chr&gt;,
+#&gt; #   taxi_out &lt;dbl&gt;, taxi_in &lt;dbl&gt;, carrier_delay &lt;dbl&gt;,
+#&gt; #   weather_delay &lt;dbl&gt;, nas_delay &lt;dbl&gt;, security_delay &lt;dbl&gt;,
+#&gt; #   late_aircraft_delay &lt;dbl&gt;
+```
+
+???
+
+Once we remove the duplicated observation, we are all good.
+
+Irregular time space is marked by exclamation mark. and we've got 22 thousands of flights or series in the table.
+
+---
+
+&lt;img src="img/tsibble-pipeline.png" height=580px&gt;
+
+???
+
+When creating a tsibble object, we're also going through the tidy stage. Tsibble complains early when the data involves duplicates, like the flights data. We need to find the duplicates and fix them. We now end up with a properly-defined temporal data.
+
+Tsibble permits time gaps. It is recommended to check time gaps before transformation and modelling. Bc you are likely to encounter errors if gaps in time. Luckily no gaps in these two data sets.
+
+Tsibble provides formal organisation on how to tidy your temporal data.
+
+---
+
+class: inverse middle
+
+# .blue[2.] Tsibble is &lt;br&gt; a domain specific language in &lt;i class="fab fa-r-project"&gt;&lt;/i&gt; &lt;br&gt; for wrangling temporal data.
+
+&lt;hr&gt;
+
+.small[.green[
+
+```
+⬢ __  _    __   .    ⬡           ⬢  . 
+ / /_(_)__/ /_ ___  _____ _______ ___ 
+/ __/ / _  / // / |/ / -_) __(_-&lt;/ -_)
+\__/_/\_,_/\_, /|___/\__/_/ /___/\__/ 
+     ⬢  . /___/      ⬡      .       ⬢ 
+```
+]]
+
+???
+
+Tsibble is not only a data abstraction, but also a DSL for wrangling temporal data.
+
+Like we can make a plot layer by layer with grammar of graphics, we can chain operation by operation using tsibble to make a complete analysis. Bc the grammar is declarative.
+
+When I actually develop tsibble, I started to appreciate the tidyverse team. Lots of amazing design thinking behind it. A fluent and consistent API gives an intuitive pipeline but it takes lots of time to refine the idea. For example, naminng a thing is difficult.
+
+---
+
+
+```r
+carrier_delay &lt;- flights_ts %&gt;% 
+  group_by(carrier) %&gt;% 
+  index_by(week = ~ yearweek(.)) %&gt;% 
+  summarise_at(vars(contains("delay")), list(~ mean(.)))
+```
+
+
+```
+*#&gt; # A tsibble: 636 x 9 [1W]
+*#&gt; # Key:       carrier [12]
+#&gt;   carrier       week dep_delay arr_delay carrier_delay
+#&gt;   &lt;chr&gt;       &lt;week&gt;     &lt;dbl&gt;     &lt;dbl&gt;         &lt;dbl&gt;
+#&gt; 1 AA        2016 W52     13.5      8.91             NA
+#&gt; 2 AA        2017 W01     15.2     14.4              NA
+#&gt; 3 AA        2017 W02      8.06     3.64             NA
+#&gt; 4 AA        2017 W03      4.89     0.237            NA
+#&gt; 5 AA        2017 W04      2.53    -3.25             NA
+#&gt; 6 AA        2017 W05      1.90    -4.43             NA
+#&gt; # … with 630 more rows, and 4 more variables:
+#&gt; #   weather_delay &lt;dbl&gt;, nas_delay &lt;dbl&gt;,
+#&gt; #   security_delay &lt;dbl&gt;, late_aircraft_delay &lt;dbl&gt;
+```
+
+---
+
+## Complain when tsibble cannot hold
+
+.pull-left[
+
+```r
+carrier_delay %&gt;% 
+  select(carrier, dep_delay)
+```
+
+```
+#&gt; Selecting index: "week"
+```
+
+```
+#&gt; # A tsibble: 636 x 3 [1W]
+#&gt; # Key:       carrier [12]
+#&gt;   carrier dep_delay     week
+#&gt;   &lt;chr&gt;       &lt;dbl&gt;   &lt;week&gt;
+#&gt; 1 AA          13.5  2016 W52
+#&gt; 2 AA          15.2  2017 W01
+#&gt; 3 AA           8.06 2017 W02
+#&gt; 4 AA           4.89 2017 W03
+#&gt; 5 AA           2.53 2017 W04
+#&gt; 6 AA           1.90 2017 W05
+#&gt; # … with 630 more rows
+```
+]
+.pull-right[
+
+```r
+carrier_delay %&gt;% 
+  select_at(vars(contains("delay")))
+```
+
+```
+#&gt; The result is not a valid tsibble.
+#&gt; Do you need `as_tibble()` to work with data frame?
+```
+]
+
+---
+
+class: middle
+
+## Tsibble-specific verbs
+
+.pull-left[
+### Short-hand
+* `index_by()`
+* `group_by_key()`
+* `filter_index()`
+* `append_row()`
+]
+.pull-right[
+### Gap-aware
+* `has_gaps()`
+* `scan_gaps()`
+* `count_gaps()`
+* `fill_gaps()`
+]
+
+---
+
+class: inverse middle
+
+# .blue[3.] Tsibble rolls with &lt;br&gt; functional programming.
+
+&lt;hr&gt;
+
+### [FP focuses on expressions instead of for-loop statements.](https://en.wikipedia.org/wiki/Functional_programming)
+
+???
+
+The third aspect of tsibble is adopting FP for rolling windows.
+
+When doing rolling window analysis, we cannot avoid for loops. But tsibble's rolling family keeps users away from for loops. and help concentrate on what you're going to achieve instead of how you're going to achieve.
+
+---
+
+## Map and roll
+
+.left-column[
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+.center[&lt;img src="https://github.com/rstudio/hex-stickers/blob/master/PNG/purrr.png?raw=true", height = "200px"&gt;]
+]
+
+--
+
+.right-column[
+&lt;div style="width:100%;height:0;padding-bottom:64%;position:relative;"&gt;&lt;iframe src="https://giphy.com/embed/xoSaxIp8f9JPa" width="100%" height="100%" style="position:absolute" frameBorder="0" class="giphy-embed" allowFullScreen&gt;&lt;/iframe&gt;&lt;/div&gt;&lt;p&gt;&lt;a href="https://giphy.com/gifs/cat-rolls-xoSaxIp8f9JPa"&gt;&lt;/a&gt;&lt;/p&gt;
+]
+
+???
+
+Another chunk of operations for time series is definitely rolling window. It
+not only does iteration over each element like what `purrr::map()` does, but 
+also needs to roll. What I'm going to do is to wake up this cat, and let her roll.
+
+---
+
+.pull-left[
+
+```r
+x &lt;- 1:12
+ma_x1 &lt;- double(length = length(x) - 1)
+for (i in seq_along(ma_x1)) {
+* ma_x1[i] &lt;- mean(x[i:(i + 1)])
+}
+ma_x1
+```
+
+```
+#&gt;  [1]  1.5  2.5  3.5  4.5  5.5  6.5
+#&gt;  [7]  7.5  8.5  9.5 10.5 11.5
+```
+
+```r
+mm_x2 &lt;- integer(length = length(x) - 2)
+for (i in seq_along(mm_x2)) {
+* mm_x2[i] &lt;- median(x[i:(i + 2)])
+}
+mm_x2
+```
+
+```
+#&gt;  [1]  2  3  4  5  6  7  8  9 10 11
+```
+]
+.pull-right[
+.bottom[
+### ⬅️ For loops
+]
+]
+
+???
+
+A toy example: computing moving averages for window size 2 and median for 3
+
+In order to compute the mean and median, I have to do a bit of setup for the loop. But the only part we're interested is the action: mean and median.
+
+The length of output is not stable, depending on the the choice window size. This is for loop
+
+---
+
+.pull-left[
+
+```r
+x &lt;- 1:12
+ma_x1 &lt;- double(length = length(x) - 1)
+for (i in seq_along(ma_x1)) {
+* ma_x1[i] &lt;- mean(x[i:(i + 1)])
+}
+ma_x1
+```
+
+```
+#&gt;  [1]  1.5  2.5  3.5  4.5  5.5  6.5
+#&gt;  [7]  7.5  8.5  9.5 10.5 11.5
+```
+
+```r
+mm_x2 &lt;- integer(length = length(x) - 2)
+for (i in seq_along(mm_x2)) {
+* mm_x2[i] &lt;- median(x[i:(i + 2)])
+}
+mm_x2
+```
+
+```
+#&gt;  [1]  2  3  4  5  6  7  8  9 10 11
+```
+]
+.pull-right[
+
+```r
+slide_dbl(x, mean, .size = 2)
+```
+
+```
+#&gt;  [1]   NA  1.5  2.5  3.5  4.5  5.5
+#&gt;  [7]  6.5  7.5  8.5  9.5 10.5 11.5
+```
+
+```r
+slide_int(x, median, .size = 3)
+```
+
+```
+#&gt;  [1] NA NA  2  3  4  5  6  7  8  9
+#&gt; [11] 10 11
+```
+.bottom[
+### ⬆️ Functionals
+]
+]
+
+???
+
+What I mean by FP? It abstracts away the for-loop, and focus on what you want to do by supplying a function. And it's length-stable and type-stable.
+
+---
+
+.left-column[
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+## .center[It's a rolling family.]
+]
+.right-column[
+.center[&lt;img src="https://tsibble.tidyverts.org/reference/figures/animate-1.gif"/&gt;]
+]
+
+???
+
+3 types of rolling window
+
+1. sliding: moves a fixed length window through the data with overlapping
+2. tiling: moves a fixed length window through the data w/o overlapping
+3. stretching: fix an initial window and expand to include more observations.
+
+The animation shows three different rolling averages.
+
+it takes an arbitrary function: simple complex
+
+time series CV: easier to compute forecasting accuracy by comparing rolling forecast with rolling data
+
+...
+
+The only limit for how to use this family for window-related analysis is your imagination. 
+
+---
+
+background-image: url(img/tsibble-model.png)
+background-size: 70%
+background-position: 91% 38%
+
+.left-column[
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+## .center[‼️]
+]
+.right-column[
+.animated.slower.rollIn.delay-1s[
+.pipeline[&lt;img src="img/tsibble.png", height = "150px"&gt;]
+]
+]
+
+### .bottom[.center[Tsibble provides &lt;br&gt; fundamental data infrastructure.]]
+
+???
+
+What's my contribution is:
+
+Tsibble provides a uniform and standardized temporal data structure for downstream analytic tasks. You can easily transform, visualise and model your temporal data, and smoothly shifts between them for rapid iteration to gain data insights.
+
+Tsibble also provides a descriptive grammar that you can express your temporal data analysis problem easily.
+
+Lemme show you a final example to conclude this part by chaining these 3 parts together.
+
+---
+
+class: inverse
+
+.pull-left[
+.center[&lt;img src="img/tidyverts.png", height = "600px"&gt;]
+]
+.pull-right[
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+# tidyver.red[ts].org
+]
+
+???
+
+Last year, I said tsibble was going to be the future of time series. This year, I would say the future is around the corner. A few dependent packages have been developed around the tsibble structure, including the new fable package for forecasting to replace the forecast package. Rob has already started teaching this set of cutting-edge tools in his class this semester. The next generation of forecasters will be more productive.
+
+---
+
+class: middle center
+
+.card[
+![slides](img/slides-cover.png)
+[slides.earo.me/jsm19](https://slides.earo.me/jsm19)
+]
+
+.card[
+![tsibble-web](img/tsibble.png)
+[tsibble.tidyverts.org](https://tsibble.tidyverts.org)
+]
+
+.card[
+![fpp3](https://otexts.com/fpp3/fpp2_cover.jpg)
+[otexts.com/fpp3](https://otexts.com/fpp3/)
+]
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"slideNumberFormat": "<div class=\"progress-bar-container\">   <div class=\"progress-bar\" style=\"width: calc(%current% / %total% * 100%);\">   </div> </div>"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();</script>
+<script>
+(function() {
+  var divHTML = document.querySelectorAll(".details-open");
+  divHTML.forEach(function (el) {
+    var preNodes = el.getElementsByTagName("pre");
+    var outputNode = preNodes[1];
+    outputNode.outerHTML = "<details open class='output'><summary>click me!</summary>" + outputNode.outerHTML + "</details>";
+  })
+})();
+(function() {
+  var divHTML = document.querySelectorAll(".details");
+  divHTML.forEach(function (el) {
+    var preNodes = el.getElementsByTagName("pre");
+    var outputNode = preNodes[1];
+    outputNode.outerHTML = "<details class='output'><summary>click me!</summary>" + outputNode.outerHTML + "</details>";
+  })
+})();
+</script>
+
+<script>
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
