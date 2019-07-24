@@ -55,17 +55,17 @@ read_chunk('scripts/flights.R')
 
 ???
 
-Data analysis is a process, particularly it's an iterative process.
+Since I'm talking about data analysis in R, I cannot avoid talking about the tidyverse.
 
-The tidyverse is a collection of R packages to help with this process quick and tidy.
+This diagram, you probably see it many times, resonates well with data scientists, because it points out the critical steps and the iterative nature of the analysis process.
 
-Why it's important? Before deploying the final model into the production stage, we need to repeat this process many many times. If this model doesn't work, we make some tweaks, and then fit another model. We want this iteration as rapid as possible.
+You can find one of the tidyverse packages correspond to each of the modules here. The tidyverse basically helps with data analysis tidy and smooth in general.
 
-In addition to tidy tools, what's underlying this fluent workflow is tidy data.
+But what this diagram doesn't tell you is they all share the same underlying data structure.
 
-The "tidy" stage doesn't mean data cleaning, but refers to making the data in a right shape, a uniform shape that is shared by these three stages in this circle.
+This "tidy" stage doesn't mean data cleaning, but actually means making the data in a right shape, a uniform shape that forms the basis for these three modules in this loop. Now, this kind of data shape is called "tidy data".
 
-With the tidyverse, we have such a fluent pipeline to handle data analysis. But when you have time series data and want to do time series analysis ...
+With the tidyverse, we have such a fluent pipeline to handle data analysis. But if you have ever done time series analysis in R, I hope this diagram resonates with you well ...
 
 ---
 
@@ -84,11 +84,15 @@ With the tidyverse, we have such a fluent pipeline to handle data analysis. But 
 
 ???
 
-This is what you experience. Lots of you in this department primarily focus on the statistical models. But I have been working on the rest of the process to support modelling.
+It is a messy-verse.
 
-Small data lives in csv files, big data stays in database. But most time, the form of the data at the "import" stage deviates a lot from the current time series objects that are designed for modelling. When doing transformation and visualisation, different data shapes are expected. We do not have a uniform shape for lubricating this process for time series. There's no formal guidance how to reshape the data for modelling purpose.
+There are a few time series data classes in R, but all are designed purely for the modelling purpose, which means the object can be quite different from the data at the "import" stage. No formal organisation is provided on how to reshape the data for modelling, you'll go through such a lumpy path with luck.
 
-Screaming out "WAT" is the natural response to this workflow. Let me share my "WAT" moment.
+Once the data is in the modelling shape, transformation and plotting are doable but not that tidy.
+
+But this diagram only captures the workflow for relatively simple data set. If the data is more complex, for example, many series and many measurements, the diagram doesn't emphasize the difficulty enough.
+
+This motivates the tsibble package that I'm going to talk about.
 
 ---
 
@@ -113,11 +117,9 @@ background-position: 91% 38%
 
 ???
 
-So my work is going to smooth out those rough edges, provides a conceptual framework for temporal data analysis, and fill the gap of tidy data in temporal context. We're going to call this new data structure---"tsibble".
+The goal of the tsibble package is to define tidy data in terms of temporal contexts, that is suitable for downstream analysis, like modeling or forecasting, and reduces the friction between data and models. It turns out tsibble is tidier than tidy data. I'll explain what I mean by tidier data later.
 
-You know I'm serious about this work, bc it has a logo.
-
-Next I'm going to demonstrate this whole data process with tsibble and showcase the value of it.
+Tsibble alone can't do everything in this whole process. A broader picture here is we hope to tidy the time series workflow through the tidyverts ecosystem.
 
 ---
 
@@ -131,11 +133,11 @@ class: inverse middle
 
 ???
 
-Tsibble is a multi-faceted product.
+What can tsibble do?
 
 First of all, tsibble represents tidy temporal data.
 
-A tsibble has to be tidy data first. Data is organised in the common rectangular form: each row is an observation; each column holds a variable. But temporal data is more of a contextual data object. So on top of the tidy data, column variables require more meanings: index for time support, key for defining identities over time, and the rest are measurements.
+A tsibble is first built on top of the tidy data principles. Tidy data is organised in the rectangular format: each row forms an observation; each column forms a variable. But temporal data is more of a contextual data object. We have introduced index and key to make the temporal context explicit. And the rest are measurements. But still this figure just describes the shape of a tsibble.
 
 ---
 
@@ -145,27 +147,25 @@ class: middle
 
 ## In *tsibble*:
 
-1. **Index** is a variable with inherent ordering from past to present.
-2. **Key** is a set of variables that define observational units over time.
-3. Each observation should be uniquely identified by **key** and **index**.
+1. Index is a variable with inherent ordering from past to present.
+2. Key is a set of variables that define observational units over time.
+3. Each observation should be uniquely identified by **index** and **key**.
+4. Each observational unit should be measured at a common **interval**, if regularly spaced.
 
 Tsibble is a data- and model-oriented object.
 
 ???
 
-Let me elaborate index and key more.
+I said before tsibble is a tidier data, because
 
-The index variable consists of time indices that provide a contextual basis for temporal data.
+1. The index variable provides a contextual basis for temporal data. Tsibble supports the common ones: dates and date-times with inherent ordering, and others like intradays or numbers. Custom time classes can also be supported, as long as they can be ordered from past to future.
+2. For example, if you're doing survey studies, the participants are the observational units forming the key. Or if you're looking at monthly energy use of households, the households form the key.
+3. In other words, an observational unit can't allow for duplicated time stamps.
+4. 
 
-A variety of time representations exist in the wild, the common ones you saw before, dates and date-times, as well as intradays and intervals from one time point to another. Tsibble supports all of them, as long as they can be ordered from past to future.
+The 1st and 2nd bullet points make tsibble a data-centric object. And the 3rd and 4th make sure it can be probably analysed and modeled later.
 
-Unlike other time series objects, tsibble respects time zones, will not ignore them and not convert them to UTC. 
-
-Temporal data can be regular and irregularly spaced in time. That's why we say tsibble is temporal data instead of time series.
-
-And the key can consist of empty, one or more variables. It is typically known for analysts. Each observational unit in the key, only allows unique time indices.
-
-These features make tsibble a modern re-imagining temporal data.
+Okay, how would these four points turn a data set into a tsibble. Time for an example.
 
 ---
 
@@ -185,15 +185,11 @@ class: middle
 
 ???
 
-How the data looks like?
+The data set we're looking at is the on-time performance for domestic flights in the States. It's the same data source as the package `nycflights13`, but it's much bigger, not limited to NYC and also more recent. It's about 2017.
 
-My data is quite simple, with 1000 obs and 2 variables. The `Date` column provides the time context. and how many visitors.
+It's a medium-sized data set with 5M obs and 22 variables. (briefly describe the data)
 
-This data starts from the day when I started my PhD until yesterday. It has a sad beginning that nobody visited my website in the early days.
-
-By contrast, airline data contains 5M obs and 22 variables. The `sched_dep_datetime` column gives the date-times. Other variables include the meta info describing the flights and on-time performance metrics. It is an event data set.
-
-They already arrived in the tidy shape, with clearly defined observations and variables. Now we need to declare them as temporal data using tsibble.
+It already arrives as tidy data, with clearly defined observations and variables. Now we need to declare them as temporal data using tsibble.
 
 ---
 
@@ -213,15 +209,17 @@ They already arrived in the tidy shape, with clearly defined observations and va
 
 ???
 
-How about the airline data?
+From the passenger's point of view, we're interested in flight number at its scheduled departure time. So `key = ?`, and `index = ?`. Because it's event data with irregular interval, we have to specify `regular = FALSE`.
 
-From the passenger's point of view, we're interested in flight number at its scheduled departure time. Also it's irregular interval.
+Everything looks good to me. Finger crossed.
 
-After declaring key and index. Oops! We got an error.
+Oops! We got an error.
 
 The error says: ... and suggests ...
 
-Another way to interpret this error message is that this data may have data quality issue.
+Another way to interpret this error message is that the data set may have data quality issue. Not every data is the iris data set, small and clean. Especially large data sets need somewhat cleaning.
+
+We need to search for those duplicates and hopefully fix them.
 
 ---
 
@@ -235,11 +233,7 @@ flights %>%
 
 ???
 
-We need to search for those duplicates and fix them.
-
-As you can see, we've got two problematic entries. The flight number `NK630` has been scheduled twice at the same departure time. They have identical arrival time, departure delay, arrival delay, and carrier. But they are different in tail number, origin and destination. After researching this flight number and going through the whole database, my decision is to remove the highlighted entry: the flight from LAX to DEN, bc this flight doesn't operate on this route.
-
-Tsibble is strict on tidy data.
+As you can see, we've got two problematic data entries. The flight number `NK630` has been scheduled twice at the same departure time. They have identical arrival time, departure delay, arrival delay, and carrier. But they are different in tail number, origin and destination. After researching this flight number and going through the whole database, my decision is to remove the highlighted entry: the flight from LAX to DEN, bc this flight doesn't operate on this route during that period.
 
 ---
 
@@ -255,9 +249,9 @@ print(flights_ts, width = 70)
 
 ???
 
-Once we remove the duplicated observation, we are all good.
+Once we remove the duplicated observation, we are all settled. A tsibble is created.
 
-Irregular time space is marked by exclamation mark. and we've got 22 thousands of flights or series in the table.
+The printing method tries to give useful information. The exclamation mark highlights the irregularity, and the time zone associated with the index. and we've got 22 thousands flights as observational units in the table.
 
 ---
 
@@ -265,9 +259,9 @@ Irregular time space is marked by exclamation mark. and we've got 22 thousands o
 
 ???
 
-When creating a tsibble object, we're also going through the tidy stage. Tsibble complains early when the data involves duplicates, like the flights data. We need to find the duplicates and fix them. We now end up with a properly-defined temporal data.
+What I have done so far is going through the tidy stage in order to create the tsibble object. Tsibble complains early when the data involves duplicates, like the flights data. We need to find the duplicates and fix them. We now end up with a properly-defined temporal data.
 
-Tsibble permits time gaps. It is recommended to check time gaps before transformation and modelling. Bc you are likely to encounter errors if gaps in time. Luckily no gaps in these two data sets.
+Tsibble permits time gaps. It is recommended to check time gaps before transformation and modelling. Bc you are likely to encounter errors if gaps in time. Luckily no gaps in this data.
 
 Tsibble provides formal organisation on how to tidy your temporal data.
 
