@@ -120,7 +120,7 @@ What can tsibble do?
 
 First of all, tsibble represents tidy temporal data.
 
-A tsibble is first built on top of the tidy data principles. Tidy data is organised in the rectangular format: each row forms an observation; each column forms a variable. But temporal data is more of a contextual data object. We have introduced index and key to make the temporal context explicit. And the rest are measurements. But still this figure just describes the shape of a tsibble.
+A tsibble is first built on top of the tidy data principles. Tidy data is organised in the rectangular format: each observation forms a row; each variable forms a column. But temporal data is more of a contextual data object. We have introduced index and key to make the temporal context explicit. And the rest are measurements. But still this figure just describes the shape of a tsibble.
 
 ---
 
@@ -230,7 +230,7 @@ Oops! We got an error.
 
 The error says: ... and suggests ...
 
-Another way to interpret this error message is that the data set may have data quality issue. Not every data is the iris data set, small and clean. Especially large data sets need somewhat cleaning.
+Another way to interpret this error message is that the data set may have data quality issue. Not every data is our beloved iris data set, small and clean. Especially large data sets need somewhat cleaning. Btw, Di will be talking about the history of iris data at ???
 
 We need to search for those duplicates and hopefully fix them.
 
@@ -305,7 +305,7 @@ The printing method tries to give useful information. The exclamation mark highl
 
 What I have done so far is going through the tidy stage in order to create the tsibble object. Tsibble complains early when the data involves duplicates, like the flights data. We need to find the duplicates and fix them. We now end up with a properly-defined temporal data.
 
-Tsibble permits time gaps. It is recommended to check time gaps before transformation and modelling. Bc you are likely to encounter errors if gaps in time. Luckily no gaps in this data.
+Tsibble permits time gaps. It is recommended to check time gaps before transformation and modelling. Bc you are likely to encounter errors if gaps in time. Luckily no gaps in this data, bc it's currently irregular.
 
 Tsibble provides formal organisation on how to tidy your temporal data.
 
@@ -332,9 +332,9 @@ class: inverse middle
 
 Tsibble is not only a data abstraction, but also a DSL for wrangling temporal data.
 
-Like we can make a plot layer by layer with grammar of graphics, we can chain operation by operation using tsibble to make a complete analysis. Bc the grammar is declarative.
+It tries to follow closely to the spirit of the tidyverse, and those familiar with tidyverse will have less resistance to learning the new semantics.
 
-When I actually develop tsibble, I started to appreciate the tidyverse team. Lots of amazing design thinking behind it. A fluent and consistent API gives an intuitive pipeline but it takes lots of time to refine the idea. For example, naminng a thing is difficult.
+It extends the existing tidyverse vocabulary to the time domain, and introduces some new verbs for making wrangling easier and more intuitive.
 
 ---
 
@@ -342,7 +342,7 @@ When I actually develop tsibble, I started to appreciate the tidyverse team. Lot
 ```r
 carrier_delay &lt;- flights_ts %&gt;% 
   group_by(carrier) %&gt;% 
-  index_by(week = ~ yearweek(.)) %&gt;% 
+  index_by(week = ~ yearweek(.)) %&gt;% # week = yearweek(sched_dep_datetime)
   summarise_at(vars(contains("delay")), list(~ mean(.)))
 ```
 
@@ -362,6 +362,20 @@ carrier_delay &lt;- flights_ts %&gt;%
 #&gt; #   weather_delay &lt;dbl&gt;, nas_delay &lt;dbl&gt;,
 #&gt; #   security_delay &lt;dbl&gt;, late_aircraft_delay &lt;dbl&gt;
 ```
+
+???
+
+Continue with the flights example. It's a great data set, bc it's very fine resolution, detailed information about each individual flight.
+
+But it is overwhelming to explore the data at the individual level straightway. We usually start with aggregated data first.
+
+For example, if we're interested in summarising average weekly on-time performance by each carrier, we write the R code as documenting the approaches to the problem.
+
+You've probably seen `group_by()` and `summarise()` before, the only new function here is `index_by()`, grouping the tsibble index. Since tsibble knows the index, the dot refers to the index variable, which saves some keystrokes. But you can still do.
+
+The `index_by()` and `summarise()` combo also helps to regularise the flights data to weekly data. The subjects of interest has also shifted from flights to carriers.
+
+Almost all dplyr verbs work with tsibble.
 
 ---
 
@@ -405,26 +419,60 @@ carrier_delay %&gt;%
 ```
 ]
 
+???
+
+But during the transformation stage, if tsibble cannot hold, it will start complaining.
+
+For example, when index is not selected, it will automatically selects the index. When only measured variables are selected, a tsibble is no longer a tsibble, an error pops out, leaving you a hint that you may need to work with data frame instead.
+
+I think it's important to remind users of time context, but keep getting errors may be annoying occasionally.
+
 ---
 
 class: middle
 
-## Tsibble-specific verbs
-
 .pull-left[
-### Short-hand
+## Tsibble-specific verbs
+* `has_gaps()`
+* `scan_gaps()`
+* `count_gaps()`
+* `fill_gaps()`
+&lt;hr&gt;
 * `index_by()`
 * `group_by_key()`
 * `filter_index()`
 * `append_row()`
 ]
 .pull-right[
-### Gap-aware
-* `has_gaps()`
-* `scan_gaps()`
-* `count_gaps()`
-* `fill_gaps()`
+
+```r
+has_gaps(carrier_delay)
+```
+
+```
+#&gt; # A tibble: 12 x 2
+#&gt;    carrier .gaps
+#&gt;    &lt;chr&gt;   &lt;lgl&gt;
+#&gt;  1 AA      FALSE
+#&gt;  2 AS      FALSE
+#&gt;  3 B6      FALSE
+#&gt;  4 DL      FALSE
+#&gt;  5 EV      FALSE
+#&gt;  6 F9      FALSE
+#&gt;  7 HA      FALSE
+#&gt;  8 NK      FALSE
+#&gt;  9 OO      FALSE
+#&gt; 10 UA      FALSE
+#&gt; 11 VX      FALSE
+#&gt; 12 WN      FALSE
+```
 ]
+
+???
+
+In addition to `index_by()`, there are some other domain-specific verbs. You may find this set of gap-aware functions useful for handling implicit gaps in time. As you can see, each carrier has no gaps over weeks.
+
+Other shortcuts to reduce the typing.
 
 ---
 
@@ -438,7 +486,7 @@ class: inverse middle
 
 ???
 
-The third aspect of tsibble is adopting FP for rolling windows.
+The third aspect of tsibble is adopting FP for rolling windows. Rolling windows are commonly-used techniques for time series applications.
 
 When doing rolling window analysis, we cannot avoid for loops. But tsibble's rolling family keeps users away from for loops. and help concentrate on what you're going to achieve instead of how you're going to achieve.
 
@@ -461,9 +509,9 @@ When doing rolling window analysis, we cannot avoid for loops. But tsibble's rol
 
 ???
 
-Another chunk of operations for time series is definitely rolling window. It
-not only does iteration over each element like what `purrr::map()` does, but 
-also needs to roll. What I'm going to do is to wake up this cat, and let her roll.
+In terms of functional programming, you'll definitely know base R `apply()` and purrr `map()` function.
+
+What they all do is to apply a function over each element iteratively. But for rolling window, they cannot just sleep but have to roll.
 
 ---
 
@@ -581,7 +629,7 @@ What I mean by FP? It abstracts away the for-loop, and focus on what you want to
 
 ???
 
-3 types of rolling window
+It's a rolling family with 3 variants
 
 1. sliding: moves a fixed length window through the data with overlapping
 2. tiling: moves a fixed length window through the data w/o overlapping
@@ -620,13 +668,9 @@ background-position: 91% 38%
 
 ???
 
-What's my contribution is:
+Lemme briefly summarise the tsibble package.
 
-Tsibble provides a uniform and standardized temporal data structure for downstream analytic tasks. You can easily transform, visualise and model your temporal data, and smoothly shifts between them for rapid iteration to gain data insights.
-
-Tsibble also provides a descriptive grammar that you can express your temporal data analysis problem easily.
-
-Lemme show you a final example to conclude this part by chaining these 3 parts together.
+Tsibble provides a uniform and standardized temporal data structure for downstream analytic tasks. You can easily transform via dplyr and tsibble, visualise with ggplot2, and do modeling, and smoothly shift between them for rapid iteration to gain data insights.
 
 ---
 
@@ -644,7 +688,31 @@ class: inverse
 
 ???
 
-Last year, I said tsibble was going to be the future of time series. This year, I would say the future is around the corner. A few dependent packages have been developed around the tsibble structure, including the new fable package for forecasting to replace the forecast package. Rob has already started teaching this set of cutting-edge tools in his class this semester. The next generation of forecasters will be more productive.
+If you want to take tsibble further for forecasting and high-dimensional analysis, please check out the rest of tidyverts packages that support the tsibble structure.
+
+The fable package is replacing the forecast package. The fasster models time series with multiple seasonality. The feasts package computes a number of time series features and provides many graphics.
+
+We have already started teaching this set of cutting-edge tools at Monash Uni this year, making time series teaching and learning easier.
+
+---
+
+## Joint work
+
+&lt;br&gt;
+.center[
+.portrait[
+![](https://slides.earo.me/phd19/img/di.jpg)
+Di Cook
+]
+.portrait[
+![](https://pbs.twimg.com/profile_images/1103150025981321216/dV3Wz_ql_400x400.png)
+Rob J Hyndman
+]
+.portrait[
+![](https://pbs.twimg.com/profile_images/901030601490182145/Un598Dz3_400x400.jpg)
+Mitchell O'Hara‑Wild
+]
+]
 
 ---
 

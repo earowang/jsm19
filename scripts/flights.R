@@ -26,7 +26,7 @@ flights_ts <- flights %>%
 ## ---- aggregate-week
 carrier_delay <- flights_ts %>% 
   group_by(carrier) %>% 
-  index_by(week = ~ yearweek(.)) %>% 
+  index_by(week = ~ yearweek(.)) %>% # week = yearweek(sched_dep_datetime)
   summarise_at(vars(contains("delay")), list(~ mean(.)))
 
 ## ---- select1
@@ -36,6 +36,9 @@ carrier_delay %>%
 ## ---- select2
 carrier_delay %>% 
   select_at(vars(contains("delay")))
+
+## ---- gaps
+has_gaps(carrier_delay)
 
 ## ---- forecast
 library(fable)
