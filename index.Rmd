@@ -1,7 +1,7 @@
 ---
 title: "A new tidy data structure <br> to support exploration and modeling of temporal data"
 type: "contributed"
-author: "Earo Wang"
+author: "Earo Wang <br> .small[Monash University]"
 date: ""
 output:
   xaringan::moon_reader:
@@ -402,7 +402,7 @@ class: center
 .pull-right[
 <br>
 <br>
-![](img/cat-rolls.gif)
+<img src="img/cat-rolls.gif"/ height="300px">
 ]
 
 ???
