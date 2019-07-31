@@ -79,11 +79,11 @@ With the tidyverse, we have such a fluent pipeline to handle data analysis. But 
 
 It is a messy-verse.
 
-There are a few time series data classes in R, but all are designed purely for the modelling purpose, which means the object can be quite different from the data at the "import" stage. How to convert the raw data to model objects happen under the table. No formal and transparent organisation is provided on how to reshape the data for modelling, you'll go through such a lumpy path with luck.
+There are a few time series data classes in R, but all are designed purely for the modelling purpose, which means the object can be quite different from the data. How to convert the raw data to model objects happen under the table. No formal and transparent organisation is provided on how to reshape the data for modelling, you'll go through such a lumpy path with luck.
 
-Once the data is in the modelling shape, transformation and plotting are doable but not that tidy.
+Once the data is in the modelling stage, transformation and plotting are doable but not that tidy.
 
-But this diagram only captures the workflow for relatively simple data set. If the data is more complex, for example, many series and many measurements, the diagram doesn't emphasize the difficulty enough.
+But this diagram only captures the workflow for relatively simple data set. If the data is more complex, for example, like what the second speaker just talked about multidimentional streaming time series, the diagram doesn't emphasize the difficulty enough.
 
 This motivates the tsibble package that I'm going to talk about.
 
@@ -109,6 +109,8 @@ background-position: 91% 38%
 ### .bottom[.center[Tsibble defines tidier data for temporal analysis.]]
 
 ???
+
+You know I'm serious about this work, bc it has a logo.
 
 The goal of the tsibble package is to define tidy data in terms of temporal contexts, that is suitable for downstream analysis, like modeling or forecasting, and reduces the friction between data and models. It turns out tsibble is tidier than tidy data. I'll explain what I mean by tidier data later.
 
@@ -154,7 +156,7 @@ I said before tsibble is a tidier data, because
 1. The index variable provides a contextual basis for temporal data. Tsibble supports the common ones: dates and date-times, and others like intradays or numbers. Custom time classes can also be supported, as long as they can be ordered from past to future.
 2. For example, if you're doing survey studies, the participants are the observational units forming the key. Or if you're looking at monthly energy use of households, the households form the key.
 3. In other words, an observational unit can't allow for duplicated time stamps.
-4. 
+4. Tsibble will compute the interval using the greatest common factor.
 
 The 1st and 2nd bullet points make tsibble a data-centric object. And the 3rd and 4th make sure it can be probably analysed and modeled later.
 
@@ -201,7 +203,7 @@ The data set we're looking at is the on-time performance for domestic flights in
 
 It's a medium-sized data set with 5M obs and 22 variables. (briefly describe the data)
 
-It already arrives as tidy data, with clearly defined observations and variables. Now we need to declare them as temporal data using tsibble.
+It already arrives in the tidy data format, with clearly defined observations and variables. Now we need to declare them as temporal data using tsibble.
 
 ---
 
@@ -232,7 +234,7 @@ flights %&gt;%
 
 ???
 
-There could a few ways to define the key, depending on the perspective. But from the passenger's point of view, we're interested in flight number at its scheduled departure time. So `key = ?`, and `index = ?`. Because it's event data with irregular interval, we have to specify `regular = FALSE`.
+There could a few ways to define the key for this data set, depending on what perspective we're taking. From the passenger's point of view, we're interested in flight number at its scheduled departure time. So `key = ?`, and `index = ?`. Because it's event data with irregular interval, we have to specify `regular = FALSE`.
 
 Everything looks good to me. Finger crossed.
 
@@ -315,7 +317,7 @@ The printing method tries to give useful information. The exclamation mark highl
 
 What I have done so far is going through the tidy stage in order to create the tsibble object. Tsibble complains early when the data involves duplicates, like the flights data. We need to find the duplicates and fix them. We now end up with a properly-defined temporal data.
 
-Tsibble permits time gaps. It is recommended to check time gaps before transformation and modelling. Bc you are likely to encounter errors if gaps in time. Bc it's currently irregular, we don't have gaps in theory.
+Tsibble permits time gaps. I'd recommend to check time gaps before transformation and modelling. Bc you are likely to encounter errors if gaps in time. Bc it's currently irregular, we don't have gaps in theory.
 
 This is how tsibble provides formal and explicit organisation on how to tidy your temporal data.
 
@@ -433,9 +435,7 @@ carrier_delay %&gt;%
 
 But during the transformation stage, if tsibble cannot hold, it will start complaining.
 
-For example, when index is not selected, it will automatically selects the index. When only measured variables are selected, a tsibble is no longer a tsibble, an error pops out, leaving you a hint that you may need to work with data frame instead.
-
-I think it's important to remind users of time context, but keep getting errors may be annoying occasionally.
+The left panel shows when index is not selected, it will automatically selects the index. The right one shows when only measured variables are selected, a tsibble is no longer a tsibble, an error pops out, leaving you a hint that you may need to work with data frame instead.
 
 ---
 
@@ -523,7 +523,7 @@ class: center
 
 ???
 
-In terms of functional programming, you'll definitely know base R `apply()` and purrr `map()` function. What they all do is to apply a function over each element iteratively.
+In terms of functional programming, you'll definitely know base R `apply()` and purrr `map()` family. What they all do is to apply a function over each element iteratively.
 
 But for rolling window, they cannot just sleep but have to roll.
 
@@ -645,13 +645,13 @@ What I mean by FP? It abstracts away the for-loop, and focus on what you want to
 
 We have a rolling family with 3 variants
 
-1. sliding: moves a fixed length window through the data with overlapping
-2. tiling: moves a fixed length window through the data w/o overlapping
-3. stretching: fix an initial window and expand to include more observations.
+1. sliding
+2. tiling
+3. stretching
 
 The animation shows three different rolling averages.
 
-They take an arbitrary function: simple complex
+They can take an arbitrary function: simple complex
 
 They can also run in parallel.
 
